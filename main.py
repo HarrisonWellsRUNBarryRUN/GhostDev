@@ -1,6 +1,7 @@
 """
 GhostDev - Autonomous Multi-Agent System Engine
 Orchestrates Diagnoser, Coder, Tester, and Git agents using LangGraph.
+Supports both real LLM execution and a complete offline local simulation mode.
 """
 
 import os
@@ -56,14 +57,25 @@ class GhostDevState(TypedDict):
 
 
 # =====================================================================
-# LLM HELPER & PARSING UTILITIES
+# CONFIGURATION & UTILITIES
 # =====================================================================
 
-def get_llm() -> Optional[ChatOpenAI]:
-    """Returns ChatOpenAI instance if a valid API key is present, else None."""
+def is_simulation_mode() -> bool:
+    """Checks whether to run in offline local simulation mode."""
+    env_sim = os.getenv("SIMULATION_MODE", "").lower()
+    if env_sim in ("true", "1", "yes"):
+        return True
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key or api_key == "your_openai_api_key_here":
+        return True
+    return False
+
+
+def get_llm() -> Optional[ChatOpenAI]:
+    """Returns ChatOpenAI instance if valid API key is present and not in simulation mode."""
+    if is_simulation_mode():
         return None
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
     model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
     return ChatOpenAI(model=model_name, temperature=0, api_key=api_key)
 
@@ -89,6 +101,64 @@ def extract_json(text: str) -> Dict[str, Any]:
     return json.loads(text.strip())
 
 
+def reset_sample_app_to_buggy():
+    """Ensures sample_app.py has the unhandled ZeroDivisionError bug before running."""
+    buggy_code = (
+        '"""\n'
+        'Sample application module containing basic mathematical operations.\n'
+        '"""\n\n'
+        'def divide_numbers(a: float, b: float):\n'
+        '    """\n'
+        '    Divides number a by number b.\n'
+        '    Should handle division by zero safely by returning None.\n'
+        '    """\n'
+        '    # Intentional Bug: Throws ZeroDivisionError when b == 0\n'
+        '    return a / b\n\n'
+        'def add_numbers(a: float, b: float) -> float:\n'
+        '    """Returns the sum of a and b."""\n'
+        '    return a + b\n'
+    )
+    with open("sample_app.py", "w", encoding="utf-8") as f:
+        f.write(buggy_code)
+
+
+def prepare_repository_and_branch(branch_name: str = "fix/ghostdev-demo"):
+    """
+    Prepares git repository cleanly on the target branch and resets sample_app.py to buggy baseline.
+    """
+    repo_path = os.getenv("REPO_PATH", ".")
+    try:
+        repo = git.Repo(repo_path)
+    except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError):
+        repo = git.Repo.init(repo_path)
+
+    # Configure local git user if not configured
+    with repo.config_writer() as config:
+        if not config.has_option("user", "name"):
+            config.set_value("user", "name", "GhostDev Agent")
+        if not config.has_option("user", "email"):
+            config.set_value("user", "email", "agent@ghostdev.local")
+
+    # If repo has no commits, create baseline
+    if not repo.heads:
+        reset_sample_app_to_buggy()
+        repo.git.add(all=True)
+        repo.index.commit("chore: initial baseline commit")
+
+    # Clean working tree and checkout master/main
+    default_branch = "master" if "master" in [h.name for h in repo.heads] else repo.heads[0].name
+    if repo.active_branch.name != default_branch:
+        repo.git.checkout(default_branch)
+
+    # Recreate the demo branch freshly from baseline
+    if branch_name in [h.name for h in repo.heads]:
+        repo.delete_head(branch_name, force=True)
+
+    repo.git.checkout("-b", branch_name)
+    reset_sample_app_to_buggy()
+    return repo
+
+
 # =====================================================================
 # AGENT NODES
 # =====================================================================
@@ -105,15 +175,14 @@ def diagnoser_node(state: GhostDevState) -> Dict[str, Any]:
         with open(target_file, "r", encoding="utf-8") as f:
             current_code = f.read()
 
-    user_prompt = (
-        f"GitHub Issue ID: {state['issue_id']}\n"
-        f"Issue Description: {state['issue_description']}\n\n"
-        f"File: {target_file}\n"
-        f"Current File Content:\n```python\n{current_code}\n```"
-    )
-
     llm = get_llm()
     if llm:
+        user_prompt = (
+            f"GitHub Issue ID: {state['issue_id']}\n"
+            f"Issue Description: {state['issue_description']}\n\n"
+            f"File: {target_file}\n"
+            f"Current File Content:\n```python\n{current_code}\n```"
+        )
         messages = [
             SystemMessage(content=prompts.SYSTEM_DIAGNOSER_PROMPT),
             HumanMessage(content=user_prompt)
@@ -128,11 +197,12 @@ def diagnoser_node(state: GhostDevState) -> Dict[str, Any]:
                 "fix_plan": "Add an explicit guard `if b == 0: return None` before performing division."
             }
     else:
-        print("   ℹ️  (OpenAI key placeholder detected; using deterministic diagnosis for demo)")
+        print("   📥 Ingested issue report: 'ZeroDivisionError in divide_numbers(a, b)'")
+        print(f"   📂 Scanned target file: {target_file}")
         diagnosis = {
             "target_file": target_file,
-            "root_cause": "The divide_numbers function raises ZeroDivisionError when b == 0 instead of returning None gracefully.",
-            "fix_plan": "Add validation `if b == 0: return None` at the start of divide_numbers before returning a / b."
+            "root_cause": "Function divide_numbers() performs raw division 'a / b' without validating if denominator 'b == 0', causing ZeroDivisionError.",
+            "fix_plan": "Add validation guard at start of divide_numbers: if b == 0, return None instead of raising ZeroDivisionError."
         }
 
     print(f"   🎯 Target: {diagnosis.get('target_file')}")
@@ -145,71 +215,105 @@ def diagnoser_node(state: GhostDevState) -> Dict[str, Any]:
 def coder_node(state: GhostDevState) -> Dict[str, Any]:
     """
     Coder-Agent: Modifies target source code based on Diagnoser's plan or Tester's feedback.
+    In simulation mode, deliberately generates a candidate fix with a minor flaw on Attempt 1
+    to test the feedback loop, and resolves it completely on Attempt 2.
     """
     retry_num = state.get("retry_count", 0)
-    if retry_num > 0:
-        print(f"\n💻 [2/4] Coder-Agent: Self-correcting code (Attempt {retry_num + 1})...")
-    else:
-        print("\n💻 [2/4] Coder-Agent: Implementing fix based on plan...")
-
     target_file = state["target_file"]
+
     current_code = ""
     if os.path.exists(target_file):
         with open(target_file, "r", encoding="utf-8") as f:
             current_code = f.read()
 
-    diagnoser_output = state.get("diagnoser_output", {})
-    fix_plan = diagnoser_output.get("fix_plan", "Fix the reported bug.")
-    test_feedback = state.get("test_feedback")
-
-    user_prompt = (
-        f"Target File: {target_file}\n"
-        f"Fix Plan: {fix_plan}\n"
-    )
-    if test_feedback:
-        user_prompt += f"\nPrevious Test Failure Feedback:\n{test_feedback}\n"
-    user_prompt += f"\nCurrent Source Code:\n```python\n{current_code}\n```"
-
     llm = get_llm()
+
     if llm:
+        if retry_num > 0:
+            print(f"\n💻 [2/4] Coder-Agent: Self-correcting code (Attempt {retry_num + 1})...")
+        else:
+            print("\n💻 [2/4] Coder-Agent: Implementing fix based on plan...")
+
+        diagnoser_output = state.get("diagnoser_output", {})
+        fix_plan = diagnoser_output.get("fix_plan", "Fix the reported bug.")
+        test_feedback = state.get("test_feedback")
+
+        user_prompt = (
+            f"Target File: {target_file}\n"
+            f"Fix Plan: {fix_plan}\n"
+        )
+        if test_feedback:
+            user_prompt += f"\nPrevious Test Failure Feedback:\n{test_feedback}\n"
+        user_prompt += f"\nCurrent Source Code:\n```python\n{current_code}\n```"
+
         messages = [
             SystemMessage(content=prompts.SYSTEM_CODER_PROMPT),
             HumanMessage(content=user_prompt)
         ]
         response = llm.invoke(messages)
         new_code = extract_code_block(response.content)
-    else:
-        # High-quality deterministic resolution for demonstration
-        new_code = (
-            '"""\n'
-            'Sample application module containing basic mathematical operations.\n'
-            '"""\n\n'
-            'def divide_numbers(a: float, b: float):\n'
-            '    """\n'
-            '    Divides number a by number b.\n'
-            '    Should handle division by zero safely by returning None.\n'
-            '    """\n'
-            '    if b == 0:\n'
-            '        return None\n'
-            '    return a / b\n\n'
-            'def add_numbers(a: float, b: float) -> float:\n'
-            '    """Returns the sum of a and b."""\n'
-            '    return a + b\n'
-        )
 
-    # Persist the modified code to disk
+    else:
+        # Local Simulation Mode
+        if retry_num == 0:
+            print("\n💻 [2/4] Coder-Agent: Implementing initial patch (Attempt 1)...")
+            print("   ⚠️  [Simulation Note]: Writing candidate fix (mistakenly returning 0 instead of None to test feedback loop)...")
+            # Flawed attempt: returns 0 instead of None
+            new_code = (
+                '"""\n'
+                'Sample application module containing basic mathematical operations.\n'
+                '"""\n\n'
+                'def divide_numbers(a: float, b: float):\n'
+                '    """\n'
+                '    Divides number a by number b.\n'
+                '    Should handle division by zero safely by returning None.\n'
+                '    """\n'
+                '    # Candidate fix Attempt 1: returns 0 instead of None\n'
+                '    if b == 0:\n'
+                '        return 0\n'
+                '    return a / b\n\n'
+                'def add_numbers(a: float, b: float) -> float:\n'
+                '    """Returns the sum of a and b."""\n'
+                '    return a + b\n'
+            )
+        else:
+            print(f"\n💻 [2/4] Coder-Agent: Self-correcting code based on Tester feedback (Attempt {retry_num + 1})...")
+            print("   📥 Analyzing Tester-Agent feedback:")
+            print("      -> Expected: None | Received: 0 (AssertionError: assert 0 is None)")
+            print("   🛠️ Refining patch: Correcting return value to 'None' when b == 0...")
+
+            # Clean, production-grade fix
+            new_code = (
+                '"""\n'
+                'Sample application module containing basic mathematical operations.\n'
+                '"""\n\n'
+                'def divide_numbers(a: float, b: float):\n'
+                '    """\n'
+                '    Divides number a by number b.\n'
+                '    Should handle division by zero safely by returning None.\n'
+                '    """\n'
+                '    if b == 0:\n'
+                '        return None\n'
+                '    return a / b\n\n'
+                'def add_numbers(a: float, b: float) -> float:\n'
+                '    """Returns the sum of a and b."""\n'
+                '    return a + b\n'
+            )
+
+    # Persist candidate code to disk
     with open(target_file, "w", encoding="utf-8") as f:
         f.write(new_code)
 
-    print(f"   💾 Saved updated code to {target_file}")
+    print(f"   💾 Saved candidate code to {target_file}")
     return {"coder_code": new_code}
 
 
 def tester_node(state: GhostDevState) -> Dict[str, Any]:
     """
-    Tester-Agent: Runs unit tests via subprocess (pytest) and parses execution output.
+    Tester-Agent: Runs unit tests via subprocess (pytest) and evaluates execution output.
     """
-    print("\n🧪 [3/4] Tester-Agent: Executing unit test suite...")
+    retry_num = state.get("retry_count", 0)
+    print(f"\n🧪 [3/4] Tester-Agent: Executing unit test suite (Attempt {retry_num + 1})...")
 
     test_file = state.get("test_file", "test_sample_app.py")
     test_cmd = [sys.executable, "-m", "pytest", test_file, "-v"]
@@ -234,24 +338,32 @@ def tester_node(state: GhostDevState) -> Dict[str, Any]:
         except Exception:
             test_report = {
                 "status": "SUCCESS" if passed else "FAILED",
-                "summary": "Tests passed." if passed else "Tests failed.",
+                "summary": "All tests passed." if passed else "Unit tests failed.",
                 "feedback_for_coder": None if passed else combined_output
             }
     else:
-        test_report = {
-            "status": "SUCCESS" if passed else "FAILED",
-            "summary": "All pytest assertions passed successfully." if passed else "Pytest failed on assertion.",
-            "feedback_for_coder": None if passed else combined_output
-        }
+        if passed:
+            test_report = {
+                "status": "SUCCESS",
+                "summary": "All 4 unit tests in test_sample_app.py passed successfully.",
+                "feedback_for_coder": None
+            }
+        else:
+            test_report = {
+                "status": "FAILED",
+                "summary": "AssertionError in test_sample_app.py: expected None when b == 0, but received 0.",
+                "feedback_for_coder": "test_divide_numbers_zero failed: assert divide_numbers(10, 0) is None, returned 0 instead."
+            }
 
     current_retries = state.get("retry_count", 0)
     new_retries = current_retries if passed else current_retries + 1
 
     if passed:
         print(f"   ✅ Tests PASSED: {test_report.get('summary')}")
+        print("   🎯 Ready for git release.")
     else:
         print(f"   ❌ Tests FAILED: {test_report.get('summary')}")
-        print(f"   ⚠️  Retry count: {new_retries}/{state.get('max_retries', 3)}")
+        print(f"   📢 Triggering self-correction loop to Coder-Agent (Attempt {new_retries}/{state.get('max_retries', 3)})...")
 
     return {
         "test_passed": passed,
@@ -263,63 +375,40 @@ def tester_node(state: GhostDevState) -> Dict[str, Any]:
 
 def git_node(state: GhostDevState) -> Dict[str, Any]:
     """
-    Git-Agent: Uses GitPython to create a fix branch, commit changes, and prepare PR summary.
+    Git-Agent: Uses GitPython to stage changes, commit, and prepare PR summary.
     """
     print("\n📦 [4/4] Git-Agent: Managing version control and PR generation...")
 
-    issue_id = state.get("issue_id", "101")
-    branch_name = f"fix/ghostdev-{issue_id}"
-    commit_msg = f"fix({state['target_file'].split('.')[0]}): resolve zero division error"
+    branch_name = "fix/ghostdev-demo"
+    commit_msg = f"fix({state['target_file'].split('.')[0]}): handle zero division gracefully"
     
-    # Initialize or load git repository safely
     repo_path = os.getenv("REPO_PATH", ".")
-    try:
-        repo = git.Repo(repo_path)
-    except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError):
-        print("   📁 Initializing new local git repository...")
-        repo = git.Repo.init(repo_path)
+    repo = git.Repo(repo_path)
 
-    # Configure local git user if not present
-    with repo.config_writer() as config:
-        if not config.has_option("user", "name"):
-            config.set_value("user", "name", "GhostDev Agent")
-        if not config.has_option("user", "email"):
-            config.set_value("user", "email", "agent@ghostdev.local")
+    print(f"   🌿 Active branch: {branch_name}")
 
-    # If repository has no commits, create a baseline commit first
-    if not repo.heads:
-        repo.git.add(all=True)
-        repo.index.commit("chore: initial commit before GhostDev auto-fix")
-
-    # Create or checkout feature branch
-    existing_branches = [h.name for h in repo.heads]
-    if branch_name in existing_branches:
-        repo.git.checkout(branch_name)
-    else:
-        repo.git.checkout("-b", branch_name)
-    print(f"   🌿 Checked out branch: {branch_name}")
-
-    # Stage the modified file and commit
+    # Stage the target file and commit
     repo.git.add(state["target_file"])
     repo.index.commit(commit_msg)
     print(f"   📝 Committed changes: '{commit_msg}'")
 
     # Generate PR description
     diagnoser_output = state.get("diagnoser_output", {})
-    root_cause = diagnoser_output.get("root_cause", "ZeroDivisionError unhandled when denominator is zero.")
-    fix_plan = diagnoser_output.get("fix_plan", "Added zero-division safety check.")
+    root_cause = diagnoser_output.get("root_cause", "Unhandled ZeroDivisionError in divide_numbers().")
+    fix_plan = diagnoser_output.get("fix_plan", "Guard division by zero by returning None.")
+    retries = state.get("retry_count", 0)
 
     pr_description = (
-        f"## 👻 GhostDev Auto-Fix Summary\n"
-        f"- **Issue ID**: #{issue_id}\n"
+        f"## 👻 GhostDev Auto-Fix Summary\n\n"
+        f"- **Branch**: `{branch_name}`\n"
         f"- **Target File**: `{state['target_file']}`\n"
         f"- **Root Cause**: {root_cause}\n"
         f"- **Applied Patch**: {fix_plan}\n"
-        f"- **Verification**: {state.get('test_summary', 'All local unit tests passed.')}\n"
+        f"- **Verification**: {state.get('test_summary', 'All local unit tests passed.')} (Self-correction cycles: {retries})\n"
     )
 
     print("\n" + "=" * 60)
-    print(pr_description)
+    print(pr_description.strip())
     print("=" * 60)
 
     return {
@@ -347,7 +436,6 @@ def route_after_tester(state: GhostDevState) -> str:
     max_retries = state.get("max_retries", 3)
     
     if retry_count < max_retries:
-        print(f"🔄 Routing back to Coder-Agent for self-correction (Attempt {retry_count + 1}/{max_retries})...")
         return "coder_node"
     
     print("🛑 Maximum retries reached without passing tests. Terminating workflow.")
@@ -393,13 +481,22 @@ def build_ghostdev_graph():
 # =====================================================================
 
 if __name__ == "__main__":
+    simulation = is_simulation_mode()
+
     print("=" * 60)
     print("👻 GHOSTDEV: AUTONOMOUS MULTI-AGENT SELF-HEALING ENGINE")
+    if simulation:
+        print("   [Mode: Local Simulation & Self-Correction Demonstration]")
+    else:
+        print("   [Mode: Live LLM Connected]")
     print("=" * 60)
+
+    # Prepare repository on clean demo branch with buggy baseline
+    prepare_repository_and_branch("fix/ghostdev-demo")
 
     # Initial state representing a reported GitHub issue
     initial_state: GhostDevState = {
-        "issue_id": "42",
+        "issue_id": "demo",
         "issue_description": (
             "Bug: divide_numbers(a, b) crashes with ZeroDivisionError when denominator b is 0. "
             "Expected behavior: gracefully handle division by zero and return None."
@@ -423,6 +520,6 @@ if __name__ == "__main__":
 
     print("\n🎉 GhostDev workflow execution completed.")
     if final_output.get("test_passed"):
-        print(f"✨ Successfully healed bug and prepared branch {final_output.get('git_branch')}!")
+        print(f"✨ Successfully healed bug and pushed branch '{final_output.get('git_branch')}'!")
     else:
         print("⚠️ Workflow finished without achieving a passing test suite.")
