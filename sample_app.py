@@ -7,7 +7,8 @@ def divide_numbers(a: float, b: float):
     Divides number a by number b.
     Should handle division by zero safely by returning None.
     """
-    # Intentional Bug: Throws ZeroDivisionError when b == 0
+    if b == 0:
+        return None
     return a / b
 
 def add_numbers(a: float, b: float) -> float:
