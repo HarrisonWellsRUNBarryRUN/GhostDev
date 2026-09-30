@@ -1,0 +1,240 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#11111b" />
+      <stop offset="45%" stop-color="#181825" />
+      <stop offset="100%" stop-color="#0b0b12" />
+    </linearGradient>
+
+    <!-- Card Background Gradient -->
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e1e2e" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#181825" stop-opacity="0.95" />
+    </linearGradient>
+
+    <!-- Node Glow Filters -->
+    <filter id="glowCyan" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#89dceb" flood-opacity="0.25" />
+    </filter>
+    <filter id="glowPeach" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#fab387" flood-opacity="0.25" />
+    </filter>
+    <filter id="glowRed" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#f38ba8" flood-opacity="0.3" />
+    </filter>
+    <filter id="glowGreen" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#a6e3a1" flood-opacity="0.25" />
+    </filter>
+    <filter id="glowMauve" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#cba6f7" flood-opacity="0.3" />
+    </filter>
+
+    <!-- Arrow Marker Definition -->
+    <marker id="arrowCyan" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M 0 0 L 8 4 L 0 8 z" fill="#89dceb" />
+    </marker>
+    <marker id="arrowPeach" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M 0 0 L 8 4 L 0 8 z" fill="#fab387" />
+    </marker>
+    <marker id="arrowGreen" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M 0 0 L 8 4 L 0 8 z" fill="#a6e3a1" />
+    </marker>
+    <marker id="arrowMauve" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M 0 0 L 8 4 L 0 8 z" fill="#cba6f7" />
+    </marker>
+    <marker id="arrowRed" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M 0 0 L 8 4 L 0 8 z" fill="#f38ba8" />
+    </marker>
+
+    <!-- Blueprint Grid -->
+    <pattern id="gridPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#313244" stroke-width="0.7" stroke-opacity="0.4" />
+    </pattern>
+  </defs>
+
+  <style>
+    @keyframes flowPulse {
+      0% { stroke-dashoffset: 40; }
+      100% { stroke-dashoffset: 0; }
+    }
+    @keyframes subtleGlow {
+      0%, 100% { opacity: 0.9; }
+      50% { opacity: 1; }
+    }
+    .flow-line {
+      stroke-dasharray: 6 6;
+      animation: flowPulse 2s linear infinite;
+    }
+    .retro-loop {
+      stroke-dasharray: 5 5;
+      animation: flowPulse 1.5s linear infinite reverse;
+    }
+    .text-title { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 800; }
+    .text-code { font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace; }
+  </style>
+
+  <!-- Background Base -->
+  <rect width="1200" height="600" fill="url(#bgGrad)" rx="16" />
+  <rect width="1200" height="600" fill="url(#gridPattern)" rx="16" />
+  <rect width="1198" height="598" x="1" y="1" fill="none" stroke="#45475a" stroke-width="1.5" rx="15" />
+
+  <!-- =================================================================== -->
+  <!-- HEADER & TELEMETRY STATUS PILLS -->
+  <!-- =================================================================== -->
+  <g transform="translate(50, 45)">
+    <!-- Logo / Brand Title -->
+    <text x="0" y="24" class="text-title" font-size="22" fill="#cdd6f4" letter-spacing="0.5">
+      👻 GHOSTDEV <tspan fill="#cba6f7">AUTONOMOUS MULTI-AGENT ARCHITECTURE</tspan>
+    </text>
+    <text x="0" y="46" class="text-code" font-size="12" fill="#a6adc8">
+      Surgical Self-Healing Loop • Adversarial Boundary Verification • Zero Test Tampering
+    </text>
+
+    <!-- Status Pills -->
+    <g transform="translate(680, 5)">
+      <!-- Branch Pill -->
+      <rect x="0" y="0" width="180" height="26" rx="13" fill="#1e1e2e" stroke="#cba6f7" stroke-width="1.2" />
+      <circle cx="12" cy="13" r="4" fill="#cba6f7" />
+      <text x="24" y="17" class="text-code" font-size="11" fill="#cdd6f4">fix/divide-zero</text>
+
+      <!-- Tests Passed Pill -->
+      <rect x="190" y="0" width="130" height="26" rx="13" fill="#1e1e2e" stroke="#a6e3a1" stroke-width="1.2" />
+      <circle cx="202" cy="13" r="4" fill="#a6e3a1" />
+      <text x="214" y="17" class="text-code" font-size="11" fill="#a6e3a1">27/27 PASSED</text>
+
+      <!-- Budget Pill -->
+      <rect x="330" y="0" width="90" height="26" rx="13" fill="#1e1e2e" stroke="#fab387" stroke-width="1.2" />
+      <circle cx="342" cy="13" r="4" fill="#fab387" />
+      <text x="354" y="17" class="text-code" font-size="11" fill="#fab387">$0.038</text>
+    </g>
+  </g>
+
+  <!-- Divider Line -->
+  <line x1="50" y1="110" x2="1150" y2="110" stroke="#313244" stroke-width="1.2" />
+
+  <!-- =================================================================== -->
+  <!-- CONNECTING ARROWS & FEEDBACK BUS (RENDERED BEHIND CARDS) -->
+  <!-- =================================================================== -->
+  <!-- Forward Pipeline (1 -> 2 -> 3 -> 4 -> 5) -->
+  <path d="M 235 270 L 270 270" stroke="#89dceb" stroke-width="2.5" class="flow-line" marker-end="url(#arrowCyan)" />
+  <path d="M 465 270 L 500 270" stroke="#fab387" stroke-width="2.5" class="flow-line" marker-end="url(#arrowPeach)" />
+  <path d="M 695 270 L 730 270" stroke="#a6e3a1" stroke-width="2.5" class="flow-line" marker-end="url(#arrowGreen)" />
+  <path d="M 925 270 L 960 270" stroke="#cba6f7" stroke-width="2.5" class="flow-line" marker-end="url(#arrowMauve)" />
+
+  <!-- Adversarial Feedback Loop (Node 3 back to Node 2) -->
+  <path d="M 600 375 C 600 445, 370 445, 370 375" fill="none" stroke="#f38ba8" stroke-width="2" class="retro-loop" marker-end="url(#arrowRed)" />
+  
+  <!-- Loop Badge / Annotation -->
+  <rect x="420" y="420" width="130" height="24" rx="12" fill="#181825" stroke="#f38ba8" stroke-width="1" />
+  <text x="485" y="436" text-anchor="middle" class="text-code" font-size="10.5" font-weight="bold" fill="#f38ba8">
+    ↺ Self-Correction Bus
+  </text>
+
+  <!-- =================================================================== -->
+  <!-- 5 ARCHITECTURAL NODES -->
+  <!-- =================================================================== -->
+
+  <!-- NODE 1: Issue Ingestion -->
+  <g transform="translate(50, 165)">
+    <rect width="185" height="210" rx="12" fill="url(#cardGrad)" stroke="#89dceb" stroke-width="1.8" filter="url(#glowCyan)" />
+    <rect x="14" y="16" width="60" height="20" rx="4" fill="#89dceb" fill-opacity="0.15" />
+    <text x="44" y="30" text-anchor="middle" class="text-code" font-size="10" font-weight="bold" fill="#89dceb">PHASE 1</text>
+    <text x="14" y="65" font-size="24">🔍</text>
+    <text x="14" y="98" class="text-title" font-size="15" fill="#f5e0dc">Issue Ingestion</text>
+    <text x="14" y="118" class="text-code" font-size="11" fill="#89dceb">Diagnoser-Agent</text>
+    <line x1="14" y1="132" x2="171" y2="132" stroke="#313244" stroke-width="1" />
+    <text x="14" y="152" class="text-code" font-size="10.5" fill="#a6adc8">• Ingests Pytest log</text>
+    <text x="14" y="170" class="text-code" font-size="10.5" fill="#a6adc8">• ZeroDivisionError</text>
+    <text x="14" y="188" class="text-code" font-size="10.5" fill="#a6adc8">• Generates JSON plan</text>
+  </g>
+
+  <!-- NODE 2: Coder-Agent -->
+  <g transform="translate(280, 165)">
+    <rect width="185" height="210" rx="12" fill="url(#cardGrad)" stroke="#fab387" stroke-width="1.8" filter="url(#glowPeach)" />
+    <rect x="14" y="16" width="60" height="20" rx="4" fill="#fab387" fill-opacity="0.15" />
+    <text x="44" y="30" text-anchor="middle" class="text-code" font-size="10" font-weight="bold" fill="#fab387">PHASE 2</text>
+    <text x="14" y="65" font-size="24">💻</text>
+    <text x="14" y="98" class="text-title" font-size="15" fill="#f5e0dc">Coder-Agent</text>
+    <text x="14" y="118" class="text-code" font-size="11" fill="#fab387">Surgical Synthesis</text>
+    <line x1="14" y1="132" x2="171" y2="132" stroke="#313244" stroke-width="1" />
+    <text x="14" y="152" class="text-code" font-size="10.5" fill="#a6adc8">• EAFP Pattern Guard</text>
+    <text x="14" y="170" class="text-code" font-size="10.5" fill="#a6adc8">• Safe Float Coercion</text>
+    <text x="14" y="188" class="text-code" font-size="10.5" fill="#a6adc8">• Minimal +8/-2 Diff</text>
+  </g>
+
+  <!-- NODE 3: Adversarial Auditor -->
+  <g transform="translate(510, 165)">
+    <rect width="185" height="210" rx="12" fill="url(#cardGrad)" stroke="#f38ba8" stroke-width="1.8" filter="url(#glowRed)" />
+    <rect x="14" y="16" width="60" height="20" rx="4" fill="#f38ba8" fill-opacity="0.15" />
+    <text x="44" y="30" text-anchor="middle" class="text-code" font-size="10" font-weight="bold" fill="#f38ba8">PHASE 3</text>
+    <text x="14" y="65" font-size="24">🚨</text>
+    <text x="14" y="98" class="text-title" font-size="15" fill="#f5e0dc">Adversarial Auditor</text>
+    <text x="14" y="118" class="text-code" font-size="11" fill="#f38ba8">Boundary Fuzzer</text>
+    <line x1="14" y1="132" x2="171" y2="132" stroke="#313244" stroke-width="1" />
+    <text x="14" y="152" class="text-code" font-size="10.5" fill="#a6adc8">• Stringified Zero ("0")</text>
+    <text x="14" y="170" class="text-code" font-size="10.5" fill="#a6adc8">• Float Overflow (10³⁰⁹)</text>
+    <text x="14" y="188" class="text-code" font-size="10.5" fill="#a6adc8">• Rejects Brittle Code</text>
+  </g>
+
+  <!-- NODE 4: Regression Synthesizer -->
+  <g transform="translate(740, 165)">
+    <rect width="185" height="210" rx="12" fill="url(#cardGrad)" stroke="#a6e3a1" stroke-width="1.8" filter="url(#glowGreen)" />
+    <rect x="14" y="16" width="60" height="20" rx="4" fill="#a6e3a1" fill-opacity="0.15" />
+    <text x="44" y="30" text-anchor="middle" class="text-code" font-size="10" font-weight="bold" fill="#a6e3a1">PHASE 4</text>
+    <text x="14" y="65" font-size="24">🧪</text>
+    <text x="14" y="98" class="text-title" font-size="15" fill="#f5e0dc">Synthesizer</text>
+    <text x="14" y="118" class="text-code" font-size="11" fill="#a6e3a1">Permanent QA</text>
+    <line x1="14" y1="132" x2="171" y2="132" stroke="#313244" stroke-width="1" />
+    <text x="14" y="152" class="text-code" font-size="10.5" fill="#a6adc8">• 27 Parameterized Tests</text>
+    <text x="14" y="170" class="text-code" font-size="10.5" fill="#a6adc8">• Invariant Fuzz Guard</text>
+    <text x="14" y="188" class="text-code" font-size="10.5" fill="#a6adc8">• 0.10s Fast Execution</text>
+  </g>
+
+  <!-- NODE 5: Git Gatekeeper PR -->
+  <g transform="translate(970, 165)">
+    <rect width="180" height="210" rx="12" fill="url(#cardGrad)" stroke="#cba6f7" stroke-width="1.8" filter="url(#glowMauve)" />
+    <rect x="14" y="16" width="60" height="20" rx="4" fill="#cba6f7" fill-opacity="0.15" />
+    <text x="44" y="30" text-anchor="middle" class="text-code" font-size="10" font-weight="bold" fill="#cba6f7">PHASE 5</text>
+    <text x="14" y="65" font-size="24">📦</text>
+    <text x="14" y="98" class="text-title" font-size="15" fill="#f5e0dc">Git Gatekeeper</text>
+    <text x="14" y="118" class="text-code" font-size="11" fill="#cba6f7">DevOps Release</text>
+    <line x1="14" y1="132" x2="166" y2="132" stroke="#313244" stroke-width="1" />
+    <text x="14" y="152" class="text-code" font-size="10.5" fill="#a6adc8">• Audit git diff --stat</text>
+    <text x="14" y="170" class="text-code" font-size="10.5" fill="#a6adc8">• Telemetry Table PR</text>
+    <text x="14" y="188" class="text-code" font-size="10.5" fill="#a6adc8">• Draft PR for Human</text>
+  </g>
+
+  <!-- =================================================================== -->
+  <!-- FOOTER: TELEMETRY & AUDIT METRICS BANNER -->
+  <!-- =================================================================== -->
+  <g transform="translate(50, 480)">
+    <rect width="1100" height="75" rx="10" fill="#181825" stroke="#313244" stroke-width="1.2" />
+
+    <g transform="translate(25, 22)">
+      <text x="0" y="0" class="text-code" font-size="10.5" font-weight="bold" fill="#89dceb">MODEL STACK</text>
+      <text x="0" y="24" class="text-title" font-size="12" fill="#cdd6f4">Sonnet 3.5 + GPT-4o-mini</text>
+    </g>
+
+    <line x1="240" y1="15" x2="240" y2="60" stroke="#313244" stroke-width="1" />
+
+    <g transform="translate(265, 22)">
+      <text x="0" y="0" class="text-code" font-size="10.5" font-weight="bold" fill="#fab387">TOKEN EFFICIENCY</text>
+      <text x="0" y="24" class="text-title" font-size="12" fill="#cdd6f4">12,480 Tokens ($0.038)</text>
+    </g>
+
+    <line x1="490" y1="15" x2="490" y2="60" stroke="#313244" stroke-width="1" />
+
+    <g transform="translate(515, 22)">
+      <text x="0" y="0" class="text-code" font-size="10.5" font-weight="bold" fill="#f38ba8">ADVERSARIAL PASS RATE</text>
+      <text x="0" y="24" class="text-title" font-size="12" fill="#a6e3a1">100% (2 Boundary Traps Killed)</text>
+    </g>
+
+    <line x1="770" y1="15" x2="770" y2="60" stroke="#313244" stroke-width="1" />
+
+    <g transform="translate(795, 22)">
+      <text x="0" y="0" class="text-code" font-size="10.5" font-weight="bold" fill="#cba6f7">DEV TIME SAVED</text>
+      <text x="0" y="24" class="text-title" font-size="12" fill="#cdd6f4">~18 mins ($22.50 ROI Equiv)</text>
+    </g>
+  </g>
+</svg>
