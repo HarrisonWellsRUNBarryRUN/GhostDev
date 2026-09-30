@@ -7,9 +7,14 @@ def divide_numbers(a: float, b: float):
     Divides number a by number b.
     Should handle division by zero safely by returning None.
     """
-    if b == 0:
+    try:
+        val_a = float(a)
+        val_b = float(b)
+        if val_b == 0.0:
+            return None
+        return val_a / val_b
+    except (ZeroDivisionError, OverflowError, TypeError, ValueError):
         return None
-    return a / b
 
 def add_numbers(a: float, b: float) -> float:
     """Returns the sum of a and b."""
